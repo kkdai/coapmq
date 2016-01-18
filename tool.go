@@ -6,21 +6,6 @@ import (
 	"net"
 	"strings"
 	"time"
-
-	"github.com/dustin/go-coap"
-)
-
-type CMD_TYPE int
-
-//Refer to CoAP pub/sub Function Set (chapter 4)
-const (
-	CMD_DISCOVER    CMD_TYPE = iota
-	CMD_CREATE      CMD_TYPE = iota
-	CMD_PUBLISH     CMD_TYPE = iota
-	CMD_SUBSCRIBE   CMD_TYPE = iota
-	CMD_UNSUBSCRIBE CMD_TYPE = iota
-	CMD_READ        CMD_TYPE = iota
-	CMD_REMOVE      CMD_TYPE = iota
 )
 
 func init() {
@@ -84,13 +69,4 @@ func GetIPv4Int16() uint16 {
 	}
 
 	return 0
-}
-
-//Refer to coapmq RFC:  https://datatracker.ietf.org/doc/draft-koster-core-coap-pubsub
-//URI Template:  /{+ps/}{topic}{/topic*}
-func EncodeCmdsToPath(cmd string, topics ...string) string {
-	return ""
-}
-
-func GetCmdMessage(cmd CMD_TYPE, msg string, topics ...string) *coap.Message {
 }

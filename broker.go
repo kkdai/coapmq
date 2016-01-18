@@ -10,7 +10,7 @@ import (
 type chanMapStringList map[*net.UDPAddr][]string
 type stringMapChanList map[string][]*net.UDPAddr
 
-type CoapmqServer struct {
+type Broker struct {
 	capacity int
 
 	msgIndex uint16 //for increase and sync message ID
@@ -23,8 +23,8 @@ type CoapmqServer struct {
 
 //Create a new pubsub server using CoAP protocol
 //maxChannel: It is the subpub topic limitation size, suggest not lower than 1024 for basic usage
-func NewCoapmqServer(maxChannel int) *CoapmqServer {
-	cSev := new(CoapmqServer)
+func NewBroker(maxChannel int) *Broker {
+	cSev := new(Broker)
 	cSev.capacity = maxChannel
 	cSev.clientMapTopics = make(map[*net.UDPAddr][]string, maxChannel)
 	cSev.topicMapClients = make(map[string][]*net.UDPAddr, maxChannel)
@@ -33,12 +33,12 @@ func NewCoapmqServer(maxChannel int) *CoapmqServer {
 	return cSev
 }
 
-func (c *CoapmqServer) genMsgID() uint16 {
+func (c *Broker) genMsgID() uint16 {
 	c.msgIndex = c.msgIndex + 1
 	return c.msgIndex
 }
 
-func (c *CoapmqServer) removeSubscription(topic string, client *net.UDPAddr) {
+func (c *Broker) removeSubscription(topic string, client *net.UDPAddr) {
 	removeIndexT2C := -1
 	if val, exist := c.topicMapClients[topic]; exist {
 		for k, v := range val {
@@ -75,7 +75,7 @@ func (c *CoapmqServer) removeSubscription(topic string, client *net.UDPAddr) {
 
 }
 
-func (c *CoapmqServer) addSubscription(topic string, client *net.UDPAddr) {
+func (c *Broker) addSubscription(topic string, client *net.UDPAddr) {
 	topicFound := false
 	if val, exist := c.topicMapClients[topic]; exist {
 		for _, v := range val {
@@ -102,7 +102,7 @@ func (c *CoapmqServer) addSubscription(topic string, client *net.UDPAddr) {
 	}
 }
 
-func (c *CoapmqServer) publish(l *net.UDPConn, topic string, msg string) {
+func (c *Broker) publish(l *net.UDPConn, topic string, msg string) {
 	if clients, exist := c.topicMapClients[topic]; !exist {
 		return
 	} else { //topic exist, publish it
@@ -114,15 +114,23 @@ func (c *CoapmqServer) publish(l *net.UDPConn, topic string, msg string) {
 	log.Println("pub finished")
 }
 
-func (c *CoapmqServer) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
+func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 	var topic string
-	if m.Path() != nil {
-		topic = m.Path()[0]
+	if m.Path() == nil {
+		return nil
 	}
 
-	cmd := ParseUint8ToString(m.Option(coap.URIPath))
-	log.Println("cmd=", cmd, " topic=", topic, " msg=", string(m.Payload))
-	log.Println("code=", m.Code, " option=", cmd)
+	cmd := m.Path()[0]
+	//"ps" is mandantory command for coapmq
+	if cmd != "ps" {
+		return nil
+	}
+
+	if len(m.Path()) > 1 {
+		topic = m.Path()[1]
+	}
+
+	log.Println("cmd=", cmd, " topic=", topic, " msg=", string(m.Payload), "code=", m.Code)
 
 	if cmd == "ADDSUB" {
 		log.Println("add sub topic=", topic, " in client=", a)
@@ -148,17 +156,17 @@ func (c *CoapmqServer) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap
 }
 
 //Start to listen udp port and serve request, until faltal eror occur
-func (c *CoapmqServer) ListenAndServe(udpPort string) {
+func (c *Broker) ListenAndServe(udpPort string) {
 	log.Fatal(coap.ListenAndServe("udp", udpPort,
 		coap.FuncHandler(func(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 			return c.handleCoAPMessage(l, a, m)
 		})))
 }
 
-func (c *CoapmqServer) responseOK(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) {
+func (c *Broker) responseOK(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) {
 	m2 := coap.Message{
 		Type:      coap.Acknowledgement,
-		Code:      coap.Get,
+		Code:      coap.GET,
 		MessageID: m.MessageID,
 		Payload:   m.Payload,
 	}
@@ -173,22 +181,5 @@ func (c *CoapmqServer) responseOK(l *net.UDPConn, a *net.UDPAddr, m *coap.Messag
 	}
 }
 
-func (c *CoapmqServer) publishMsg(l *net.UDPConn, a *net.UDPAddr, topic string, msg string) {
-	m := coap.Message{
-		Type:      coap.Confirmable,
-		Code:      coap.Get,
-		MessageID: c.genMsgID(),
-		Payload:   []byte(msg),
-	}
-
-	//m.SetOption(coap.ContentFormat, coap.TextPlain)
-	m.SetOption(coap.ContentFormat, coap.AppLinkFormat)
-	//TODO need encode pubsh command
-	m.SetPath(msg.Path())
-	log.Printf("Transmitting %v msg=%s", m, msg)
-	err := coap.Transmit(l, a, m)
-	if err != nil {
-		log.Printf("Error on transmitter, stopping: %v", err)
-		return
-	}
+func (c *Broker) publishMsg(l *net.UDPConn, a *net.UDPAddr, topic string, msg string) {
 }

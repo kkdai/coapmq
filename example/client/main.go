@@ -21,13 +21,13 @@ func main() {
 
 	fmt.Println(cmd, topic, msg)
 
-	client := NewCoapmqClient("localhost:5683")
+	client := NewClient("localhost:5683")
 	if client == nil {
 		log.Fatalln("Cannot connect to server, please check your setting.")
 	}
 
 	if cmd == "ADDSUB" {
-		ch, err := client.AddSub(topic)
+		ch, err := client.Subscription(topic)
 		log.Println(" ch:", ch, " err=", err)
 		log.Println("Got pub from topic:", topic, " pub:", <-ch)
 	}

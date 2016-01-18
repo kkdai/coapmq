@@ -13,7 +13,7 @@ type subConnection struct {
 	clientCon *coap.Conn
 }
 
-type CoapmqClient struct {
+type Client struct {
 	msgIndex uint16
 	serAddr  string
 	subList  map[string]subConnection
@@ -22,8 +22,8 @@ type CoapmqClient struct {
 // Create a pubsub client for CoAP protocol
 // It will connect to server and make sure it alive and start heart beat
 // To keep udp port open, we will send heart beat event to server every minutes
-func NewCoapmqClient(servAddr string) *CoapmqClient {
-	c := new(CoapmqClient)
+func NewClient(servAddr string) *Client {
+	c := new(Client)
 	c.subList = make(map[string]subConnection, 0)
 	c.serAddr = servAddr
 
@@ -37,13 +37,13 @@ func NewCoapmqClient(servAddr string) *CoapmqClient {
 }
 
 //Add Subscription on topic and return a channel for user to wait data
-func (c *CoapmqClient) AddSub(topic string) (chan string, error) {
+func (c *Client) Subscription(topic string) (chan string, error) {
 	if val, exist := c.subList[topic]; exist {
 		//if topic already exist in sub, return and not send to server
 		return val.channel, nil
 	}
 
-	conn, err := c.sendPubsubReq("ADDSUB", topic)
+	conn, err := c.sendReq(CMD_SUBSCRIBE, topic)
 	if err != nil {
 		return nil, err
 	}
@@ -58,39 +58,29 @@ func (c *CoapmqClient) AddSub(topic string) (chan string, error) {
 }
 
 //Remove Subscribetion on topic
-func (c *CoapmqClient) RemoveSub(topic string) error {
+func (c *Client) Remove(topic string) error {
 	if _, exist := c.subList[topic]; !exist {
 		//if topic not in sub list, return and not send to server
 		return nil
 	}
 
-	_, err := c.sendPubsubReq("REMSUB", topic)
+	_, err := c.sendReq(CMD_UNSUBSCRIBE, topic)
 	return err
 }
 
-func (c *CoapmqClient) sendPubsubReq(cmd string, topic string) (*coap.Conn, error) {
-	Req := coap.Message{
-		Type:      coap.Confirmable,
-		Code:      coap.GET,
-		MessageID: c.getMsgID(),
-		Payload:   []byte(""),
-	}
-
-	//Req.SetOption(coap.ContentFormat, coap.TextPlain)
-	Req.SetOption(coap.ContentFormat, coap.AppLinkFormat)
-	//Write path with cmd/topic/
-	Req.SetPathString(topic)
+func (c *Client) sendReq(cmd CMD_TYPE, topic string) (*coap.Conn, error) {
+	reqMsg := EncodeMessage(c.getMsgID(), cmd, topic)
 
 	conn, err := coap.Dial("udp", c.serAddr)
 	if err != nil {
-		log.Printf(cmd, ">>Error dialing: %v \n", err)
+		log.Printf(">>Error dialing: %v \n", err)
 		return nil, errors.New("Dial failed")
 	}
-	conn.Send(Req)
+	conn.Send(*reqMsg)
 	return conn, err
 }
 
-func (c *CoapmqClient) waitSubResponse(conn *coap.Conn, ch chan string, topic string) {
+func (c *Client) waitSubResponse(conn *coap.Conn, ch chan string, topic string) {
 	var rv *coap.Message
 	var err error
 	var keepLoop bool
@@ -117,12 +107,12 @@ func (c *CoapmqClient) waitSubResponse(conn *coap.Conn, ch chan string, topic st
 	}
 }
 
-func (c *CoapmqClient) getMsgID() uint16 {
+func (c *Client) getMsgID() uint16 {
 	c.msgIndex = c.msgIndex + 1
 	return c.msgIndex
 }
 
-func (c *CoapmqClient) heartBeat() {
+func (c *Client) heartBeat() {
 	log.Println("Starting heart beat loop call")
 	hbReq := coap.Message{
 		Type:      coap.Confirmable,
@@ -133,7 +123,7 @@ func (c *CoapmqClient) heartBeat() {
 
 	//hbReq.SetOption(coap.ContentFormat, coap.TextPlain)
 	hbReq.SetOption(coap.ContentFormat, coap.AppLinkFormat)
-	hbReq.SetOption(coap.ETag, "HB")
+	hbReq.SetPathString("HB")
 
 	for {
 
