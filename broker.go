@@ -11,7 +11,8 @@ type chanMapStringList map[*net.UDPAddr][]string
 type stringMapChanList map[string][]*net.UDPAddr
 
 type Broker struct {
-	capacity int
+	//The default maximal map size
+	Capacity int
 
 	msgIndex uint16 //for increase and sync message ID
 
@@ -19,15 +20,19 @@ type Broker struct {
 	clientMapTopics chanMapStringList
 	//map to store "topic -> chan List" for publish
 	topicMapClients stringMapChanList
+	//Store all topic list and its latest value
+	topicMapValue map[string]string
 }
 
 //Create a new pubsub server using CoAP protocol
 //maxChannel: It is the subpub topic limitation size, suggest not lower than 1024 for basic usage
-func NewBroker(maxChannel int) *Broker {
+func NewBroker(maxCapacity int) *Broker {
 	cSev := new(Broker)
-	cSev.capacity = maxChannel
-	cSev.clientMapTopics = make(map[*net.UDPAddr][]string, maxChannel)
-	cSev.topicMapClients = make(map[string][]*net.UDPAddr, maxChannel)
+	cSev.Capacity = maxCapacity
+	cSev.clientMapTopics = make(map[*net.UDPAddr][]string, maxCapacity)
+	cSev.topicMapClients = make(map[string][]*net.UDPAddr, maxCapacity)
+	cSev.topicMapValue = make(map[string]string, maxCapacity)
+
 	cSev.msgIndex = GetIPv4Int16() + GetLocalRandomInt()
 	log.Println("Init msgID=", cSev.msgIndex)
 	return cSev
@@ -76,6 +81,18 @@ func (c *Broker) removeSubscription(topic string, client *net.UDPAddr) coap.COAP
 	return res
 }
 
+func (c *Broker) createTopic(topic string, client *net.UDPAddr) coap.COAPCode {
+	res := coap.Created
+
+	return res
+}
+
+func (c *Broker) subscribeTopic(topic string, client *net.UDPAddr) coap.COAPCode {
+	res := coap.Created
+
+	return res
+}
+
 func (c *Broker) addSubscription(topic string, client *net.UDPAddr) coap.COAPCode {
 	res := coap.Created
 
@@ -107,16 +124,33 @@ func (c *Broker) addSubscription(topic string, client *net.UDPAddr) coap.COAPCod
 	return res
 }
 
-func (c *Broker) publish(l *net.UDPConn, topic string, msg string) coap.COAPCode {
+func (c *Broker) readTopic(topic string) (string, coap.COAPCode) {
+	res := coap.Content
+
+	var retValue string
+	if value, exist := c.topicMapValue[topic]; !exist {
+		res = coap.NotFound
+		retValue = ""
+	} else {
+		retValue = value
+	}
+
+	log.Println("read finished")
+	return retValue, res
+}
+
+func (c *Broker) publish(l *net.UDPConn, topic string, value string) coap.COAPCode {
 	res := coap.Changed
 	if clients, exist := c.topicMapClients[topic]; !exist {
 		return coap.NotFound
 	} else { //topic exist, publish it
 		for _, client := range clients {
-			c.publishMsg(l, client, topic, msg)
-			log.Println("topic->", topic, " PUB to ", client, " msg=", msg)
+			c.publishMsg(l, client, topic, value)
+			log.Println("topic->", topic, " PUB to ", client, " msg=", value)
 		}
 	}
+
+	c.topicMapValue[topic] = value
 	log.Println("pub finished")
 	return res
 }
@@ -131,20 +165,23 @@ func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Messa
 	log.Println("cmd=", cmd)
 
 	res := coap.BadRequest
+	retValue := ""
 
 	switch cmd.Type {
 	case CMD_SUBSCRIBE:
-		log.Println("add sub topic=", cmd.Topics[0], " in client=", a)
-		res = c.addSubscription(cmd.Topics[0], a)
+		log.Println("add sub topic=", cmd.Topics, " in client=", a)
+		res = c.addSubscription(cmd.Topics, a)
 	case CMD_UNSUBSCRIBE:
-		log.Println("remove sub topic=", cmd.Topics[0], " in client=", a)
-		res = c.removeSubscription(cmd.Topics[0], a)
+		log.Println("remove sub topic=", cmd.Topics, " in client=", a)
+		res = c.removeSubscription(cmd.Topics, a)
 	case CMD_PUBLISH:
-		res = c.publish(l, cmd.Topics[0], string(m.Payload))
+		res = c.publish(l, cmd.Topics, string(m.Payload))
 	case CMD_HEARTBEAT:
 		//For heart beat request just return OK
 		log.Println("Got heart beat from ", a)
 		m.Code = coap.Content
+	case CMD_READ:
+		retValue, res = c.readTopic(cmd.Topics)
 	default:
 		log.Println("Got invalid message.")
 
@@ -154,7 +191,7 @@ func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Messa
 		log.Println("Topic=", k, " sub by client=>", v)
 	}
 	//Prepare response message
-	return c.response(res, m)
+	return c.response(res, retValue, m)
 }
 
 //Start to listen udp port and serve request, until faltal eror occur
@@ -165,9 +202,12 @@ func (c *Broker) ListenAndServe(udpPort string) {
 		})))
 }
 
-func (c *Broker) response(res coap.COAPCode, m *coap.Message) *coap.Message {
+func (c *Broker) response(res coap.COAPCode, data string, m *coap.Message) *coap.Message {
 	m.Type = coap.Acknowledgement
 	m.Code = res
+	if data != "" {
+		m.Payload = []byte(data)
+	}
 	return m
 }
 

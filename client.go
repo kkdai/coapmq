@@ -50,7 +50,7 @@ func (c *Client) Subscription(topic string) (chan string, error) {
 		return val.channel, nil
 	}
 
-	conn, err := c.sendReq(CMD_SUBSCRIBE, topic, "")
+	conn, err := c.sendWaitingReq(CMD_SUBSCRIBE, topic, "")
 	if err != nil {
 		return nil, err
 	}
@@ -64,18 +64,50 @@ func (c *Client) Subscription(topic string) (chan string, error) {
 	return subChan, nil
 }
 
-//Remove Subscribetion on topic
-func (c *Client) Remove(topic string) error {
-	if _, exist := c.subList[topic]; !exist {
-		//if topic not in sub list, return and not send to server
-		return nil
-	}
-
-	_, err := c.sendReq(CMD_UNSUBSCRIBE, topic, "")
-	return err
+//Create topic on server
+func (c *Client) CreateTopic(topic string) error {
+	ret, err := c.sendReq(CMD_CREATE, topic, "")
+	log.Println("Result:", ret.Code)
+	return ErrorWrapper(ret.Code, err)
 }
 
-func (c *Client) sendReq(cmd CMD_TYPE, topic string, msg string) (*coap.Conn, error) {
+//Remove topic on server
+func (c *Client) RemoveTopic(topic string) error {
+	ret, err := c.sendReq(CMD_REMOVE, topic, "")
+	log.Println("Result:", ret.Code)
+	return ErrorWrapper(ret.Code, err)
+}
+
+//Discovery and query with topic filter
+func (c *Client) DiscoveryTopic(queryFilter string) (string, error) {
+	//TODO. Need work detail on query filter on serer side
+	return "", errors.New("NOT IMPLEMENT")
+}
+
+//Read topic most updated value from server, return error if topic not exist
+func (c *Client) ReadTopic(topic string) (string, error) {
+	ret, err := c.sendReq(CMD_READ, topic, "")
+	if err != nil {
+		return "", ErrorWrapper(ret.Code, err)
+	}
+
+	log.Println("Result:", ret.Code, " value=", string(ret.Payload))
+	return string(ret.Payload), nil
+}
+
+//Remove Subscribetion on topic
+func (c *Client) UnsubscribeTopic(topic string) error {
+	if _, exist := c.subList[topic]; !exist {
+		//if topic not in sub list, return and not send to server
+		return errors.New("Not subscribe this topic before.")
+	}
+
+	ret, err := c.sendReq(CMD_UNSUBSCRIBE, topic, "")
+	log.Println("Result:", ret.Code, " Err=", err, " detail err=", ErrorWrapper(ret.Code, err))
+	return ErrorWrapper(ret.Code, err)
+}
+
+func (c *Client) sendWaitingReq(cmd CMD_TYPE, topic string, msg string) (*coap.Conn, error) {
 	reqMsg := EncodeMessage(c.getMsgID(), cmd, msg, topic)
 	log.Println("path=", reqMsg.Path())
 	conn, err := coap.Dial("udp", c.serAddr)
@@ -86,6 +118,17 @@ func (c *Client) sendReq(cmd CMD_TYPE, topic string, msg string) (*coap.Conn, er
 	conn.Send(*reqMsg)
 	log.Println("msg->", *reqMsg)
 	return conn, err
+}
+
+func (c *Client) sendReq(cmd CMD_TYPE, topic string, msg string) (*coap.Message, error) {
+	reqMsg := EncodeMessage(c.getMsgID(), cmd, msg, topic)
+	log.Println("path=", reqMsg.Path())
+	conn, err := coap.Dial("udp", c.serAddr)
+	if err != nil {
+		log.Printf(">>Error dialing: %v \n", err)
+		return nil, errors.New("Dial failed")
+	}
+	return conn.Send(*reqMsg)
 }
 
 func (c *Client) waitSubResponse(conn *coap.Conn, ch chan string, topic string) {

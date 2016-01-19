@@ -10,7 +10,7 @@ import (
 
 type Cmd struct {
 	Type   CMD_TYPE
-	Topics []string
+	Topics string
 	Msg    string
 }
 
@@ -92,14 +92,11 @@ func MessageDecode(m *coap.Message) (*Cmd, error) {
 		return nil, errors.New("Invalid parameter")
 	}
 
-	var topic string
-	if len(path) > 1 {
-		topic = path[1]
-	}
-
 	c := new(Cmd)
 	c.Type = CMD_INVALID
-	c.Topics = append(c.Topics, topic)
+	if len(path) > 1 {
+		c.Topics = path[1]
+	}
 
 	log.Println("msg code=", m.Code, " option =", m.Option(coap.Observe))
 	switch m.Code {
@@ -114,10 +111,10 @@ func MessageDecode(m *coap.Message) (*Cmd, error) {
 				c.Type = CMD_UNSUBSCRIBE
 			}
 		} else {
-			if strings.HasPrefix(topic, "?") {
+			if strings.HasPrefix(c.Topics, "?") {
 				//it is discover
 				c.Type = CMD_DISCOVER
-			} else if topic != "" {
+			} else if c.Topics != "" {
 				c.Type = CMD_READ
 			} else {
 				//cmd not valid

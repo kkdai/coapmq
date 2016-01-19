@@ -1,15 +1,29 @@
 package coapmq
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/dustin/go-coap"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
+}
+
+func ErrorWrapper(code coap.COAPCode, err error) error {
+	var error_string string
+	if err != nil {
+		error_string = fmt.Sprintf("coap error code:%s, err=%v", ErrorCodeMappingTable[code], err)
+	} else {
+		return nil
+	}
+	return errors.New(error_string)
 }
 
 //Parse interface (which is []uint8) to string

@@ -1,5 +1,7 @@
 package coapmq
 
+import "github.com/dustin/go-coap"
+
 type CMD_TYPE int
 
 //Refer to CoAP pub/sub Function Set (chapter 4)
@@ -15,3 +17,15 @@ const (
 	//Propietary command to keep UDP connection alive
 	CMD_HEARTBEAT CMD_TYPE = iota
 )
+
+var ErrorCodeMappingTable map[coap.COAPCode]string = map[coap.COAPCode]string{
+	coap.Created:       "Created",
+	coap.Deleted:       "Deleted",
+	coap.Changed:       "Changed",
+	coap.Content:       "Content",
+	coap.BadRequest:    "Bad Request",
+	coap.Unauthorized:  "Unauthorized",
+	coap.NotFound:      "Not Found",
+	coap.Forbidden:     "Forbidden",
+	coap.NotAcceptable: "Not Acceptable",
+}
