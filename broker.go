@@ -38,7 +38,8 @@ func (c *Broker) getMsgID() uint16 {
 	return c.msgIndex
 }
 
-func (c *Broker) removeSubscription(topic string, client *net.UDPAddr) {
+func (c *Broker) removeSubscription(topic string, client *net.UDPAddr) coap.COAPCode {
+	res := coap.Deleted
 	removeIndexT2C := -1
 	if val, exist := c.topicMapClients[topic]; exist {
 		for k, v := range val {
@@ -72,10 +73,12 @@ func (c *Broker) removeSubscription(topic string, client *net.UDPAddr) {
 			}
 		}
 	}
-
+	return res
 }
 
-func (c *Broker) addSubscription(topic string, client *net.UDPAddr) {
+func (c *Broker) addSubscription(topic string, client *net.UDPAddr) coap.COAPCode {
+	res := coap.Created
+
 	topicFound := false
 	if val, exist := c.topicMapClients[topic]; exist {
 		for _, v := range val {
@@ -85,6 +88,7 @@ func (c *Broker) addSubscription(topic string, client *net.UDPAddr) {
 		}
 	}
 	if topicFound == false {
+		res = coap.NotFound
 		c.topicMapClients[topic] = append(c.topicMapClients[topic], client)
 	}
 
@@ -100,11 +104,13 @@ func (c *Broker) addSubscription(topic string, client *net.UDPAddr) {
 	if clientFound == false {
 		c.clientMapTopics[client] = append(c.clientMapTopics[client], topic)
 	}
+	return res
 }
 
-func (c *Broker) publish(l *net.UDPConn, topic string, msg string) {
+func (c *Broker) publish(l *net.UDPConn, topic string, msg string) coap.COAPCode {
+	res := coap.Changed
 	if clients, exist := c.topicMapClients[topic]; !exist {
-		return
+		return coap.NotFound
 	} else { //topic exist, publish it
 		for _, client := range clients {
 			c.publishMsg(l, client, topic, msg)
@@ -112,6 +118,7 @@ func (c *Broker) publish(l *net.UDPConn, topic string, msg string) {
 		}
 	}
 	log.Println("pub finished")
+	return res
 }
 
 func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
@@ -123,20 +130,21 @@ func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Messa
 
 	log.Println("cmd=", cmd)
 
-	res := coap.Content
+	res := coap.BadRequest
 
 	switch cmd.Type {
 	case CMD_SUBSCRIBE:
 		log.Println("add sub topic=", cmd.Topics[0], " in client=", a)
-		c.addSubscription(cmd.Topics[0], a)
+		res = c.addSubscription(cmd.Topics[0], a)
 	case CMD_UNSUBSCRIBE:
 		log.Println("remove sub topic=", cmd.Topics[0], " in client=", a)
-		c.removeSubscription(cmd.Topics[0], a)
+		res = c.removeSubscription(cmd.Topics[0], a)
 	case CMD_PUBLISH:
-		c.publish(l, cmd.Topics[0], string(m.Payload))
+		res = c.publish(l, cmd.Topics[0], string(m.Payload))
 	case CMD_HEARTBEAT:
 		//For heart beat request just return OK
 		log.Println("Got heart beat from ", a)
+		m.Code = coap.Content
 	default:
 		log.Println("Got invalid message.")
 
