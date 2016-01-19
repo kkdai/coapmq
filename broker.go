@@ -33,7 +33,7 @@ func NewBroker(maxChannel int) *Broker {
 	return cSev
 }
 
-func (c *Broker) genMsgID() uint16 {
+func (c *Broker) getMsgID() uint16 {
 	c.msgIndex = c.msgIndex + 1
 	return c.msgIndex
 }
@@ -164,18 +164,9 @@ func (c *Broker) response(res coap.COAPCode, m *coap.Message) *coap.Message {
 }
 
 func (c *Broker) publishMsg(l *net.UDPConn, a *net.UDPAddr, topic string, msg string) {
-	m := coap.Message{
-		Type:      coap.Confirmable,
-		Code:      coap.Content,
-		MessageID: c.genMsgID(),
-		Payload:   []byte(msg),
-	}
-
-	m.SetOption(coap.ContentFormat, coap.TextPlain)
-	m.SetOption(coap.LocationPath, topic)
-
+	m := EncodeMessage(c.getMsgID(), CMD_PUBLISH, msg, topic)
 	log.Printf("Transmitting %v msg=%s", m, msg)
-	err := coap.Transmit(l, a, m)
+	err := coap.Transmit(l, a, *m)
 	if err != nil {
 		log.Printf("Error on transmitter, stopping: %v", err)
 		return
