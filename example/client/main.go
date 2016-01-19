@@ -27,6 +27,7 @@ func main() {
 	}
 
 	if cmd == "ADDSUB" {
+		log.Println("topic=", topic)
 		ch, err := client.Subscription(topic)
 		log.Println(" ch:", ch, " err=", err)
 		log.Println("Got pub from topic:", topic, " pub:", <-ch)

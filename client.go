@@ -69,14 +69,15 @@ func (c *Client) Remove(topic string) error {
 }
 
 func (c *Client) sendReq(cmd CMD_TYPE, topic string) (*coap.Conn, error) {
-	reqMsg := EncodeMessage(c.getMsgID(), cmd, topic)
-
+	reqMsg := EncodeMessage(c.getMsgID(), cmd, "msg", topic)
+	log.Println("path=", reqMsg.Path())
 	conn, err := coap.Dial("udp", c.serAddr)
 	if err != nil {
 		log.Printf(">>Error dialing: %v \n", err)
 		return nil, errors.New("Dial failed")
 	}
 	conn.Send(*reqMsg)
+	log.Println("msg->", *reqMsg)
 	return conn, err
 }
 
@@ -114,21 +115,12 @@ func (c *Client) getMsgID() uint16 {
 
 func (c *Client) heartBeat() {
 	log.Println("Starting heart beat loop call")
-	hbReq := coap.Message{
-		Type:      coap.Confirmable,
-		Code:      coap.GET,
-		MessageID: c.getMsgID(),
-		Payload:   []byte("Heart beat msg."),
-	}
-
-	//hbReq.SetOption(coap.ContentFormat, coap.TextPlain)
-	hbReq.SetOption(coap.ContentFormat, coap.AppLinkFormat)
-	hbReq.SetPathString("HB")
+	hbReq := EncodeMessage(c.getMsgID(), CMD_HEARTBEAT, "hb", "")
 
 	for {
 
 		for k, conn := range c.subList {
-			conn.clientCon.Send(hbReq)
+			conn.clientCon.Send(*hbReq)
 			log.Println("Send the heart beat in topic ", k)
 		}
 

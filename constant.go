@@ -12,4 +12,6 @@ const (
 	CMD_UNSUBSCRIBE CMD_TYPE = iota
 	CMD_READ        CMD_TYPE = iota
 	CMD_REMOVE      CMD_TYPE = iota
+	//Propietary command to keep UDP connection alive
+	CMD_HEARTBEAT CMD_TYPE = iota
 )

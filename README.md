@@ -53,8 +53,9 @@ Inspired
 ---------------
 
 - [CoAPMQ RFC Draft](https://datatracker.ietf.org/doc/draft-koster-core-coap-pubsub/?include_text=1)
+- [RFC 7252: The Constrained Application Protocol (CoAP)](http://tools.ietf.org/html/rfc7252)
+- [RFC 7641: Observing Resources in the Constrained Application Protocol (CoAP)](https://tools.ietf.org/html/rfc7641)
 - [MQTT and CoAP, IoT Protocols](https://eclipse.org/community/eclipse_newsletter/2014/february/article2.php)
-- [RFC 7252](http://tools.ietf.org/html/rfc7252)
 - [https://github.com/dustin/go-coap](https://github.com/dustin/go-coap)
 
 Project52

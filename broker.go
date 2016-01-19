@@ -115,44 +115,38 @@ func (c *Broker) publish(l *net.UDPConn, topic string, msg string) {
 }
 
 func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
-	var topic string
-	if m.Path() == nil {
+	cmd, err := MessageDecode(m)
+	if err != nil {
+		log.Println("Message decode err:", err)
 		return nil
 	}
 
-	cmd := m.Path()[0]
-	//"ps" is mandantory command for coapmq
-	if cmd != "ps" {
-		return nil
-	}
+	log.Println("cmd=", cmd)
 
-	if len(m.Path()) > 1 {
-		topic = m.Path()[1]
-	}
+	res := coap.Content
 
-	log.Println("cmd=", cmd, " topic=", topic, " msg=", string(m.Payload), "code=", m.Code)
-
-	if cmd == "ADDSUB" {
-		log.Println("add sub topic=", topic, " in client=", a)
-		c.addSubscription(topic, a)
-		c.responseOK(l, a, m)
-	} else if cmd == "REMSUB" {
-		log.Println("remove sub topic=", topic, " in client=", a)
-		c.removeSubscription(topic, a)
-		c.responseOK(l, a, m)
-	} else if cmd == "PUB" {
-		c.publish(l, topic, string(m.Payload))
-		c.responseOK(l, a, m)
-	} else if cmd == "HB" {
+	switch cmd.Type {
+	case CMD_SUBSCRIBE:
+		log.Println("add sub topic=", cmd.Topics[0], " in client=", a)
+		c.addSubscription(cmd.Topics[0], a)
+	case CMD_UNSUBSCRIBE:
+		log.Println("remove sub topic=", cmd.Topics[0], " in client=", a)
+		c.removeSubscription(cmd.Topics[0], a)
+	case CMD_PUBLISH:
+		c.publish(l, cmd.Topics[0], string(m.Payload))
+	case CMD_HEARTBEAT:
 		//For heart beat request just return OK
 		log.Println("Got heart beat from ", a)
-		c.responseOK(l, a, m)
+	default:
+		log.Println("Got invalid message.")
+
 	}
 
 	for k, v := range c.topicMapClients {
 		log.Println("Topic=", k, " sub by client=>", v)
 	}
-	return nil
+	//Prepare response message
+	return c.response(res, m)
 }
 
 //Start to listen udp port and serve request, until faltal eror occur
@@ -163,22 +157,10 @@ func (c *Broker) ListenAndServe(udpPort string) {
 		})))
 }
 
-func (c *Broker) responseOK(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) {
-	m2 := coap.Message{
-		Type:      coap.Acknowledgement,
-		Code:      coap.GET,
-		MessageID: m.MessageID,
-		Payload:   m.Payload,
-	}
-
-	//m2.SetOption(coap.ContentFormat, coap.TextPlain)
-	m2.SetOption(coap.ContentFormat, coap.AppLinkFormat)
-	m2.SetPath(m.Path())
-	err := coap.Transmit(l, a, m2)
-	if err != nil {
-		log.Printf("Error on transmitter, stopping: %v", err)
-		return
-	}
+func (c *Broker) response(res coap.COAPCode, m *coap.Message) *coap.Message {
+	m.Type = coap.Acknowledgement
+	m.Code = res
+	return m
 }
 
 func (c *Broker) publishMsg(l *net.UDPConn, a *net.UDPAddr, topic string, msg string) {
