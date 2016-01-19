@@ -31,6 +31,8 @@ func main() {
 		ch, err := client.Subscription(topic)
 		log.Println(" ch:", ch, " err=", err)
 		log.Println("Got pub from topic:", topic, " pub:", <-ch)
+	} else if cmd == "PUB" {
+		client.Publish(topic, msg)
 	}
 	log.Println("Done")
 }

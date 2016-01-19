@@ -164,4 +164,20 @@ func (c *Broker) response(res coap.COAPCode, m *coap.Message) *coap.Message {
 }
 
 func (c *Broker) publishMsg(l *net.UDPConn, a *net.UDPAddr, topic string, msg string) {
+	m := coap.Message{
+		Type:      coap.Confirmable,
+		Code:      coap.Content,
+		MessageID: c.genMsgID(),
+		Payload:   []byte(msg),
+	}
+
+	m.SetOption(coap.ContentFormat, coap.TextPlain)
+	m.SetOption(coap.LocationPath, topic)
+
+	log.Printf("Transmitting %v msg=%s", m, msg)
+	err := coap.Transmit(l, a, m)
+	if err != nil {
+		log.Printf("Error on transmitter, stopping: %v", err)
+		return
+	}
 }

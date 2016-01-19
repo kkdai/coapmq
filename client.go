@@ -36,6 +36,13 @@ func NewClient(servAddr string) *Client {
 	return c
 }
 
+func (c *Client) Publish(topic string, data string) {
+	_, err := c.sendReq(CMD_PUBLISH, topic, data)
+	if err != nil {
+		log.Println("pub error:", err)
+	}
+}
+
 //Add Subscription on topic and return a channel for user to wait data
 func (c *Client) Subscription(topic string) (chan string, error) {
 	if val, exist := c.subList[topic]; exist {
@@ -43,7 +50,7 @@ func (c *Client) Subscription(topic string) (chan string, error) {
 		return val.channel, nil
 	}
 
-	conn, err := c.sendReq(CMD_SUBSCRIBE, topic)
+	conn, err := c.sendReq(CMD_SUBSCRIBE, topic, "")
 	if err != nil {
 		return nil, err
 	}
@@ -64,12 +71,12 @@ func (c *Client) Remove(topic string) error {
 		return nil
 	}
 
-	_, err := c.sendReq(CMD_UNSUBSCRIBE, topic)
+	_, err := c.sendReq(CMD_UNSUBSCRIBE, topic, "")
 	return err
 }
 
-func (c *Client) sendReq(cmd CMD_TYPE, topic string) (*coap.Conn, error) {
-	reqMsg := EncodeMessage(c.getMsgID(), cmd, "msg", topic)
+func (c *Client) sendReq(cmd CMD_TYPE, topic string, msg string) (*coap.Conn, error) {
+	reqMsg := EncodeMessage(c.getMsgID(), cmd, msg, topic)
 	log.Println("path=", reqMsg.Path())
 	conn, err := coap.Dial("udp", c.serAddr)
 	if err != nil {
@@ -82,6 +89,7 @@ func (c *Client) sendReq(cmd CMD_TYPE, topic string) (*coap.Conn, error) {
 }
 
 func (c *Client) waitSubResponse(conn *coap.Conn, ch chan string, topic string) {
+	log.Println("start to wait sub")
 	var rv *coap.Message
 	var err error
 	var keepLoop bool
@@ -106,6 +114,7 @@ func (c *Client) waitSubResponse(conn *coap.Conn, ch chan string, topic string) 
 			keepLoop = false
 		}
 	}
+	log.Println("Leave wait sub")
 }
 
 func (c *Client) getMsgID() uint16 {
