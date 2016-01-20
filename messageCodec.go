@@ -95,11 +95,9 @@ func MessageDecode(m *coap.Message) (*Cmd, error) {
 		c.Topic = path[1]
 	}
 
-	log.Println("msg code=", m.Code, " option =", m.Option(coap.Observe))
 	switch m.Code {
 	case coap.GET:
 		obseve, found := m.Option(coap.Observe).(uint32)
-		log.Println(" observe:", obseve, " found:", found)
 		if found {
 			switch obseve {
 			case 0:

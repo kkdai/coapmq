@@ -92,7 +92,10 @@ func main() {
 				default:
 					fmt.Println("Command not support.")
 				}
-				printConsole()
+
+				if quit != true {
+					printConsole()
+				}
 			}
 		},
 	}

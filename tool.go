@@ -18,7 +18,7 @@ func init() {
 
 func ErrorWrapper(code coap.COAPCode, err error) error {
 	var error_string string
-	if err != nil {
+	if err != nil || code > coap.Content {
 		error_string = fmt.Sprintf("coap error code:%s, err=%v", ErrorCodeMappingTable[code], err)
 	} else {
 		return nil
@@ -83,4 +83,44 @@ func GetIPv4Int16() uint16 {
 	}
 
 	return 0
+}
+
+func RemoveClientFromSlice(slice []*net.UDPAddr, target *net.UDPAddr) []*net.UDPAddr {
+	var retSlice []*net.UDPAddr
+	removeIndex := -1
+	for k, v := range slice {
+		if v == target {
+			removeIndex = k
+		}
+	}
+
+	if removeIndex == -1 {
+		return slice
+	}
+	if len(slice) == 1 && removeIndex == 0 {
+		return retSlice
+	} else {
+		retSlice = append(slice[:removeIndex], slice[removeIndex+1:]...)
+	}
+	return retSlice
+}
+
+func RemoveStringFromSlice(slice []string, target string) []string {
+	var retSlice []string
+	removeIndex := -1
+	for k, v := range slice {
+		if v == target {
+			removeIndex = k
+		}
+	}
+
+	if removeIndex == -1 {
+		return slice
+	}
+	if len(slice) == 1 && removeIndex == 0 {
+		return retSlice
+	} else {
+		retSlice = append(slice[:removeIndex], slice[removeIndex+1:]...)
+	}
+	return retSlice
 }

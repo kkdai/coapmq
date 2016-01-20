@@ -94,6 +94,25 @@ func (c *Broker) createTopic(topic string) coap.COAPCode {
 	return res
 }
 
+//Remove new topic in coapmq broker, will remove all subscriptions on this topic
+func (c *Broker) removeTopic(topic string) coap.COAPCode {
+	res := coap.Deleted
+	if _, exist := c.topicMapValue[topic]; !exist {
+		res = coap.NotFound
+		log.Println("Remove topic failed, topic not exist.")
+		return res
+	}
+
+	//check if any client alreadt submit this topic
+	if clients, exist := c.topicMapClients[topic]; exist {
+		for _, client := range clients {
+			c.clientMapTopics[client] = RemoveStringFromSlice(c.clientMapTopics[client], topic)
+		}
+	}
+	delete(c.topicMapValue, topic)
+	return res
+}
+
 func (c *Broker) subscribeTopic(topic string, client *net.UDPAddr) coap.COAPCode {
 	res := coap.Created
 
@@ -148,9 +167,11 @@ func (c *Broker) readTopic(topic string) (string, coap.COAPCode) {
 
 func (c *Broker) publish(l *net.UDPConn, topic string, value string) coap.COAPCode {
 	res := coap.Changed
-	if clients, exist := c.topicMapClients[topic]; !exist {
+	if _, exist := c.topicMapValue[topic]; !exist {
 		return coap.NotFound
-	} else { //topic exist, publish it
+	}
+
+	if clients, exist := c.topicMapClients[topic]; exist {
 		for _, client := range clients {
 			c.publishMsg(l, client, topic, value)
 			log.Println("topic->", topic, " PUB to ", client, " msg=", value)
@@ -158,7 +179,6 @@ func (c *Broker) publish(l *net.UDPConn, topic string, value string) coap.COAPCo
 	}
 
 	c.topicMapValue[topic] = value
-	log.Println("pub finished")
 	return res
 }
 
@@ -179,28 +199,31 @@ func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Messa
 	switch cmd.Type {
 	case CMD_SUBSCRIBE:
 		res = c.addSubscription(cmd.Topic, a)
-		reqCmd = "Subscription:"
+		reqCmd = "Subscription:" + cmd.Topic
 	case CMD_UNSUBSCRIBE:
 		res = c.removeSubscription(cmd.Topic, a)
-		reqCmd = "Reqmove Sub:"
+		reqCmd = "Reqmove Sub topic:" + cmd.Topic
 	case CMD_PUBLISH:
 		res = c.publish(l, cmd.Topic, string(m.Payload))
-		reqCmd = "Publish:"
+		reqCmd = "Publish:" + cmd.Topic + " data:" + cmd.Msg
 	case CMD_HEARTBEAT:
 		m.Code = coap.Content
-		reqCmd = "Heart Beat:"
+		reqCmd = "Heart Beat"
 	case CMD_CREATE:
 		res = c.createTopic(cmd.Topic)
-		reqCmd = "Create topic:"
+		reqCmd = "Create topic:" + cmd.Topic
 	case CMD_READ:
 		retValue, res = c.readTopic(cmd.Topic)
-		reqCmd = "Read topic:"
+		reqCmd = "Read topic:" + cmd.Topic
+	case CMD_REMOVE:
+		res = c.removeTopic(cmd.Topic)
+		reqCmd = "Remove topic:" + cmd.Topic
 	default:
 		reqCmd = "Invalid Command:"
 	}
 
 	log.Println("Got cmd=", reqCmd, " from:", a)
-
+	log.Println("Current all topics:", c.topicMapValue)
 	for k, v := range c.topicMapClients {
 		log.Println("Topic=", k, " sub by client=>", v)
 	}
@@ -228,7 +251,6 @@ func (c *Broker) response(res coap.COAPCode, data string, m *coap.Message) *coap
 
 func (c *Broker) publishMsg(l *net.UDPConn, a *net.UDPAddr, topic string, msg string) {
 	m := EncodeMessage(c.getMsgID(), CMD_PUBLISH, msg, topic)
-	log.Printf("Transmitting %v msg=%s", m, msg)
 	err := coap.Transmit(l, a, *m)
 	if err != nil {
 		log.Printf("Error on transmitter, stopping: %v", err)
