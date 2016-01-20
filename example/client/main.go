@@ -21,8 +21,7 @@ func toggleLogging(enable bool) {
 }
 
 func printConsole() {
-
-	fmt.Println("Command: C:Create S:Subscription P:Publish R:RemoveTopic:>")
+	fmt.Println("Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )")
 	fmt.Printf(":>")
 }
 
@@ -41,7 +40,8 @@ func main() {
 			fmt.Println("Connect to coapmq server:", serverAddr)
 			client := NewClient(serverAddr)
 			if client == nil {
-				fmt.Fatalln("Cannot connect to server, please check your setting.")
+				fmt.Println("Cannot connect to server, please check your setting.")
+				return
 			}
 			quit := false
 			scanner := bufio.NewScanner(os.Stdin)
@@ -63,7 +63,6 @@ func main() {
 					msg = parts[2]
 				}
 
-				fmt.Println("cmd:", cmd, " topic:", topic, " msg:", msg)
 				var err error
 				switch cmd {
 				case "C", "c": //CREATE TOPIC
@@ -73,17 +72,23 @@ func main() {
 					ch, err := client.Subscription(topic)
 					fmt.Println("Subscription topic:", topic, " ret=", err)
 					go func() {
-						fmt.Println("Got pub from topic:", topic, " pub:", <-ch)
+						fmt.Println("\n >>> Got pub from topic:", topic, " pub:", <-ch)
 					}()
 				case "P", "p": //PUBLISH
 					err = client.Publish(topic, msg)
+					fmt.Println("Publish topic:", topic, " ret=", err)
 				case "R", "r": //REMOVE
 					err = client.RemoveTopic(topic)
+					fmt.Println("RemoveTopic topic:", topic, " ret=", err)
+				case "G", "g": //READ the latest topic value
+					value, err := client.ReadTopic(topic)
+					fmt.Println("ReadTopic topic:", topic, " val=", value, "ret=", err)
 				case "Q", "q":
 					quit = true
 				case "V", "v":
 					verbose = !verbose
 					toggleLogging(verbose)
+					fmt.Println("Switch verbose to ", verbose)
 				default:
 					fmt.Println("Command not support.")
 				}

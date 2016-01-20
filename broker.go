@@ -82,7 +82,7 @@ func (c *Broker) removeSubscription(topic string, client *net.UDPAddr) coap.COAP
 }
 
 //Create new topic in coapmq broker
-func (c *Broker) createTopic(topic string, client *net.UDPAddr) coap.COAPCode {
+func (c *Broker) createTopic(topic string) coap.COAPCode {
 	res := coap.Created
 	if _, exist := c.topicMapValue[topic]; exist {
 		res = coap.Forbidden
@@ -174,30 +174,37 @@ func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Messa
 
 	res := coap.BadRequest
 	retValue := ""
+	reqCmd := ""
 
 	switch cmd.Type {
 	case CMD_SUBSCRIBE:
-		log.Println("add sub topic=", cmd.Topics, " in client=", a)
-		res = c.addSubscription(cmd.Topics, a)
+		res = c.addSubscription(cmd.Topic, a)
+		reqCmd = "Subscription:"
 	case CMD_UNSUBSCRIBE:
-		log.Println("remove sub topic=", cmd.Topics, " in client=", a)
-		res = c.removeSubscription(cmd.Topics, a)
+		res = c.removeSubscription(cmd.Topic, a)
+		reqCmd = "Reqmove Sub:"
 	case CMD_PUBLISH:
-		res = c.publish(l, cmd.Topics, string(m.Payload))
+		res = c.publish(l, cmd.Topic, string(m.Payload))
+		reqCmd = "Publish:"
 	case CMD_HEARTBEAT:
-		//For heart beat request just return OK
-		log.Println("Got heart beat from ", a)
 		m.Code = coap.Content
+		reqCmd = "Heart Beat:"
+	case CMD_CREATE:
+		res = c.createTopic(cmd.Topic)
+		reqCmd = "Create topic:"
 	case CMD_READ:
-		retValue, res = c.readTopic(cmd.Topics)
+		retValue, res = c.readTopic(cmd.Topic)
+		reqCmd = "Read topic:"
 	default:
-		log.Println("Got invalid message.")
-
+		reqCmd = "Invalid Command:"
 	}
+
+	log.Println("Got cmd=", reqCmd, " from:", a)
 
 	for k, v := range c.topicMapClients {
 		log.Println("Topic=", k, " sub by client=>", v)
 	}
+
 	//Prepare response message
 	return c.response(res, retValue, m)
 }

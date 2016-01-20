@@ -9,9 +9,9 @@ import (
 )
 
 type Cmd struct {
-	Type   CMD_TYPE
-	Topics string
-	Msg    string
+	Type  CMD_TYPE
+	Topic string
+	Msg   string
 }
 
 func GetMsgCmdCode(cmd CMD_TYPE) coap.COAPCode {
@@ -92,7 +92,7 @@ func MessageDecode(m *coap.Message) (*Cmd, error) {
 	c := new(Cmd)
 	c.Type = CMD_INVALID
 	if len(path) > 1 {
-		c.Topics = path[1]
+		c.Topic = path[1]
 	}
 
 	log.Println("msg code=", m.Code, " option =", m.Option(coap.Observe))
@@ -108,10 +108,10 @@ func MessageDecode(m *coap.Message) (*Cmd, error) {
 				c.Type = CMD_UNSUBSCRIBE
 			}
 		} else {
-			if strings.HasPrefix(c.Topics, "?") {
+			if strings.HasPrefix(c.Topic, "?") {
 				//it is discover
 				c.Type = CMD_DISCOVER
-			} else if c.Topics != "" {
+			} else if c.Topic != "" {
 				c.Type = CMD_READ
 			} else {
 				//cmd not valid
