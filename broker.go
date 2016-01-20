@@ -45,6 +45,10 @@ func (c *Broker) getMsgID() uint16 {
 
 func (c *Broker) removeSubscription(topic string, client *net.UDPAddr) coap.COAPCode {
 	res := coap.Deleted
+	if _, exist := c.topicMapValue[topic]; !exist {
+		return coap.NotFound
+	}
+
 	removeIndexT2C := -1
 	if val, exist := c.topicMapClients[topic]; exist {
 		for k, v := range val {
@@ -97,6 +101,7 @@ func (c *Broker) createTopic(topic string) coap.COAPCode {
 //Remove new topic in coapmq broker, will remove all subscriptions on this topic
 func (c *Broker) removeTopic(topic string) coap.COAPCode {
 	res := coap.Deleted
+
 	if _, exist := c.topicMapValue[topic]; !exist {
 		res = coap.NotFound
 		log.Println("Remove topic failed, topic not exist.")
@@ -113,14 +118,12 @@ func (c *Broker) removeTopic(topic string) coap.COAPCode {
 	return res
 }
 
-func (c *Broker) subscribeTopic(topic string, client *net.UDPAddr) coap.COAPCode {
-	res := coap.Created
-
-	return res
-}
-
 func (c *Broker) addSubscription(topic string, client *net.UDPAddr) coap.COAPCode {
 	res := coap.Created
+
+	if _, exist := c.topicMapValue[topic]; !exist {
+		return coap.NotFound
+	}
 
 	topicFound := false
 	if val, exist := c.topicMapClients[topic]; exist {
