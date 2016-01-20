@@ -81,9 +81,16 @@ func (c *Broker) removeSubscription(topic string, client *net.UDPAddr) coap.COAP
 	return res
 }
 
+//Create new topic in coapmq broker
 func (c *Broker) createTopic(topic string, client *net.UDPAddr) coap.COAPCode {
 	res := coap.Created
+	if _, exist := c.topicMapValue[topic]; exist {
+		res = coap.Forbidden
+		log.Println("Create topic failed, topic exist.")
+		return res
+	}
 
+	c.topicMapValue[topic] = "" //default value for creation
 	return res
 }
 
@@ -159,7 +166,8 @@ func (c *Broker) handleCoAPMessage(l *net.UDPConn, a *net.UDPAddr, m *coap.Messa
 	cmd, err := MessageDecode(m)
 	if err != nil {
 		log.Println("Message decode err:", err)
-		return nil
+		m.Code = coap.BadRequest
+		return m
 	}
 
 	log.Println("cmd=", cmd)

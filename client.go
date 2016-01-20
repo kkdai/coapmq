@@ -36,11 +36,13 @@ func NewClient(servAddr string) *Client {
 	return c
 }
 
-func (c *Client) Publish(topic string, data string) {
+func (c *Client) Publish(topic string, data string) error {
 	_, err := c.sendReq(CMD_PUBLISH, topic, data)
 	if err != nil {
 		log.Println("pub error:", err)
 	}
+
+	return err
 }
 
 //Add Subscription on topic and return a channel for user to wait data

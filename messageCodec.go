@@ -43,8 +43,6 @@ func GetMsgCmdCode(cmd CMD_TYPE) coap.COAPCode {
 //URI Template:  /{+ps/}{topic}{/topic*}
 func EncodeCmdsToPath(cmd CMD_TYPE, topic string) []string {
 	var pathURI []string
-	log.Println("encode path=", topic)
-	//add basic command here
 	// cmd URI: {+ps}/{*topic}
 	if cmd == CMD_HEARTBEAT {
 		pathURI = append(pathURI, "hb")
@@ -67,7 +65,6 @@ func EncodeMessage(msgID uint16, cmd CMD_TYPE, msg string, topic string) *coap.M
 	m.MessageID = msgID
 
 	m.Payload = []byte(msg)
-	log.Println("get topics", topic)
 	m.SetPath(EncodeCmdsToPath(cmd, topic))
 
 	//m.SetOption(coap.ContentFormat, coap.TextPlain)
