@@ -84,27 +84,52 @@ func main() {
 }
 ```
 
-#### Run interactive client with CoAPMQ
+### Run interactive client with CoAPMQ
 
-```
-coapmq_client
+#####Parameters:
+- "-s": Connect serer address, default with "localhost:5683"
+- "-v": Display log information.
 
+```console
+
+//Check detail help file
+>>coapmq_client --help
+
+Client to connect to coapmq broker
+
+Usage:
+  coapmq_client [flags]
+
+Flags:
+  -s, --server="localhost:5683": coapmq server address
+  -v, --verbose[=false]: Verbose
+
+
+//Run with local address
+>>coapmq_client
 
 Connect to coapmq server: localhost:5683
 Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )
+
+//Create a topic  "t1" on server
 :>c t1
 CreateTopic topic: t1  ret= <nil>
 Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )
+
+//Subscribe topic  "t1" on server
 :>s t1
 Subscription topic: t1  ret= <nil>
 Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )
+
+//Publish data "test1" on topic "t1"
 :>p t1 test1
 Publish topic: t1  ret= <nil>
 Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )
 :>
+
+//Get call back Goroutine
  >>> Got pub from topic: t1  pub: test1
 ```
-
 
 Benchmark
 ---------------
