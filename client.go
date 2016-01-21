@@ -27,8 +27,12 @@ func NewClient(servAddr string) *Client {
 	c.subList = make(map[string]subConnection, 0)
 	c.serAddr = servAddr
 
-	//TODO: connection check if any error
-
+	//Connection check if any error
+	_, err := c.sendReq(CMD_HEARTBEAT, "", "")
+	if err != nil {
+		log.Println("Cannot connect to server")
+		return nil
+	}
 	//Start heart beat
 	c.msgIndex = GetIPv4Int16() + GetLocalRandomInt()
 	log.Println("Init msgID=", c.msgIndex)
@@ -169,15 +173,14 @@ func (c *Client) getMsgID() uint16 {
 
 func (c *Client) heartBeat() {
 	log.Println("Starting heart beat loop call")
-	hbReq := EncodeMessage(c.getMsgID(), CMD_HEARTBEAT, "hb", "")
 
 	for {
-
-		for k, conn := range c.subList {
-			conn.clientCon.Send(*hbReq)
-			log.Println("Send the heart beat in topic ", k)
+		_, err := c.sendReq(CMD_HEARTBEAT, "", "")
+		if err != nil {
+			log.Fatal("Server lost!")
+			return
 		}
-
+		log.Println("Send the heart beat")
 		time.Sleep(time.Minute)
 	}
 }
