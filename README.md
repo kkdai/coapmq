@@ -84,13 +84,26 @@ func main() {
 }
 ```
 
+#### Run interactive client with CoAPMQ
+
+```
+coapmq_client
 
 
-TODO
----------------
-
-- Hadle for UDP packet lost condition
-- Gracefully network access
+Connect to coapmq server: localhost:5683
+Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )
+:>c t1
+CreateTopic topic: t1  ret= <nil>
+Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )
+:>s t1
+Subscription topic: t1  ret= <nil>
+Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )
+:>p t1 test1
+Publish topic: t1  ret= <nil>
+Command:( C:Create S:Subscription P:Publish R:RemoveTopic V:Verbose G:Read Q:exit )
+:>
+ >>> Got pub from topic: t1  pub: test1
+```
 
 
 Benchmark
