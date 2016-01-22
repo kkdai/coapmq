@@ -7,13 +7,13 @@ CoAPMQ: Publish-Subscribe Broker for the Constrained Application Protocol (CoAP)
 Features
 ---------------
 
-It is Golang implement base on draft RFC "[Publish-Subscribe Broker for the Constrained Application Protocol (CoAP)](https://datatracker.ietf.org/doc/draft-koster-core-coap-pubsub/?include_text=1)". It is a replace version of [CoAPMQ](https://datatracker.ietf.org/doc/draft-koster-core-coapmq/). This package base on latest draft spec (2016/01/22).
+It is Golang implement based on draft RFC "[Publish-Subscribe Broker for the Constrained Application Protocol (CoAP)](https://datatracker.ietf.org/doc/draft-koster-core-coap-pubsub/?include_text=1)". It is a replace version of [CoAPMQ](https://datatracker.ietf.org/doc/draft-koster-core-coapmq/). This package based on latest draft spec (2016/01/22).
 
 
 Features
 ---------------
 
-- Supprt pub/sub mechanism base on CoAP
+- Support pub/sub mechanism based on CoAP
 - It include a simple client/server
 - Add extra heart beat mechanism to ensure UDP tunnel alive.
 
@@ -87,7 +87,7 @@ func main() {
 ### Run interactive client with CoAPMQ
 
 #####Parameters:
-- "-s": Connect serer address, default with "localhost:5683"
+- "-s": Connect server address, default with "localhost:5683"
 - "-v": Display log information.
 
 ```console
